@@ -1,0 +1,135 @@
+# ЛР3 — Docker Compose.
+#
+# Секретов в этом файле нет: логины, пароли и ключи берутся из .env рядом
+# (см. .env.example). Файл .env в репозиторий не коммитится.
+#
+# Запуск:  docker compose up --build  (из этой папки)
+# Остановка: docker compose down          (с удалением базы: docker compose down -v)
+
+name: timemanager
+
+# Общий набор переменных для api и celery_worker — чтобы не дублировать.
+x-app-env: &app-env
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  SECRET_KEY: ${SECRET_KEY}
+  ALGORITHM: ${ALGORITHM:-HS256}
+  ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/0
+  PARSER_URL: http://parser:8001
+
+services:
+
+  # ── База данных PostgreSQL ──────────────────────────────────────────────────
+  db:
+    image: postgres:16
+    container_name: timemanager-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Порт слушает только localhost — база не торчит в локальную сеть
+    ports:
+      - "127.0.0.1:${DB_PORT:-5435}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ── Redis (брокер и backend для Celery) ─────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: timemanager-redis
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Разовый прогон миграций Alembic ─────────────────────────────────────────
+  # Отдельный сервис: миграции применяются один раз перед стартом api и
+  # celery_worker, а не гонкой в каждом контейнере при рестарте.
+  migrate:
+    build:
+      context: ../Lr1
+      dockerfile: Dockerfile
+    image: timemanager-api:latest
+    container_name: timemanager-migrate
+    command: alembic upgrade head
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Сервис-парсер (ЛР2 + HTTP-интерфейс) ────────────────────────────────────
+  parser:
+    build:
+      context: ./parser
+      dockerfile: Dockerfile
+    container_name: timemanager-parser
+    ports:
+      - "${PARSER_PORT:-8001}:8001"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # ── Основное FastAPI-приложение (ЛР1) ───────────────────────────────────────
+  api:
+    build:
+      context: ../Lr1
+      dockerfile: Dockerfile
+    image: timemanager-api:latest
+    container_name: timemanager-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      parser:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Celery worker (разбирает очередь задач парсинга) ────────────────────────
+  celery_worker:
+    build:
+      context: ../Lr1
+      dockerfile: Dockerfile
+    image: timemanager-api:latest
+    container_name: timemanager-celery
+    command: celery -A app.celery_app worker --loglevel=info -Q parsing,celery
+    environment: *app-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

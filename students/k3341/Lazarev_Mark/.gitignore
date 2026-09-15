@@ -1,0 +1,16 @@
+# Секреты и локальная конфигурация — в репозиторий не попадают
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# IDE / ОС
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

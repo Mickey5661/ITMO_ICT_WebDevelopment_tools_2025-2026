@@ -1,0 +1,18 @@
+# Секреты не попадают в образ — конфиг передаётся переменными окружения
+.env
+.env.*
+!.env.example
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+.git/
+.gitignore
+.idea/
+.vscode/
+
+docs/
+*.md
+*.docx

@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ЛР1 — Time Manager API | Отчёт</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --accent3: #d29922;
+      --accent4: #f78166;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --code-bg: #1f2937;
+      --tag-get: #1c3a5e;
+      --tag-get-border: #58a6ff;
+      --tag-post: #1a3a2a;
+      --tag-post-border: #3fb950;
+      --tag-patch: #3a2e1a;
+      --tag-patch-border: #d29922;
+      --tag-delete: #3a1a1a;
+      --tag-delete-border: #f78166;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Sidebar ── */
+    .layout { display: flex; min-height: 100vh; }
+    nav {
+      width: 260px;
+      min-width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .nav-logo {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .nav-logo h2 { font-size: 15px; color: var(--accent); font-weight: 600; }
+    .nav-logo p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    nav ul { list-style: none; }
+    nav ul li a {
+      display: block;
+      padding: 6px 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+      border-left: 2px solid transparent;
+      transition: all .15s;
+    }
+    nav ul li a:hover, nav ul li a.active {
+      color: var(--text);
+      border-left-color: var(--accent);
+      background: rgba(88,166,255,.07);
+      text-decoration: none;
+    }
+    nav .nav-section {
+      padding: 14px 20px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-muted);
+    }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      padding: 40px 48px;
+      max-width: 960px;
+    }
+
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    h2 { font-size: 22px; font-weight: 600; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 16px; font-weight: 600; margin: 28px 0 10px; color: var(--accent); }
+    h4 { font-size: 14px; font-weight: 600; margin: 16px 0 6px; color: var(--text-muted); }
+    p { margin-bottom: 12px; }
+
+    .subtitle { color: var(--text-muted); font-size: 15px; margin-bottom: 32px; }
+
+    /* ── Code ── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.55;
+      margin: 12px 0 20px;
+    }
+    code {
+      font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+    }
+    p code, li code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Endpoint cards ── */
+    .endpoint {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface2);
+      cursor: pointer;
+      user-select: none;
+    }
+    .endpoint-header:hover { background: #2d333b; }
+    .method {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      min-width: 58px;
+      text-align: center;
+      letter-spacing: .04em;
+    }
+    .GET    { background: var(--tag-get);    color: var(--accent);  border: 1px solid var(--tag-get-border); }
+    .POST   { background: var(--tag-post);   color: var(--accent2); border: 1px solid var(--tag-post-border); }
+    .PATCH  { background: var(--tag-patch);  color: var(--accent3); border: 1px solid var(--tag-patch-border); }
+    .DELETE { background: var(--tag-delete); color: var(--accent4); border: 1px solid var(--tag-delete-border); }
+    .endpoint-path { font-family: monospace; font-size: 13px; color: var(--text); flex: 1; }
+    .endpoint-desc { font-size: 12px; color: var(--text-muted); }
+    .endpoint-body {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      display: none;
+    }
+    .endpoint-body.open { display: block; }
+    .endpoint-body p { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; margin: 16px 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th { background: var(--surface2); padding: 8px 12px; text-align: left; font-weight: 600; border: 1px solid var(--border); }
+    td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+    tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    .badge-blue  { background: rgba(88,166,255,.15); color: var(--accent); }
+    .badge-green { background: rgba(63,185,80,.15);  color: var(--accent2); }
+    .badge-yellow{ background: rgba(210,153,34,.15); color: var(--accent3); }
+
+    /* ── Schema boxes ── */
+    .schema-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+    @media(max-width:700px){ .schema-grid { grid-template-columns: 1fr; } }
+    .schema-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .schema-box h4 { margin-top: 0; color: var(--accent); font-size: 13px; }
+    .schema-box .field { font-size: 12px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+    .schema-box .field:last-child { border-bottom: none; }
+    .field-name { color: var(--text); font-family: monospace; }
+    .field-type { color: var(--accent3); font-size: 11px; }
+    .field-note { color: var(--text-muted); font-size: 11px; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, rgba(88,166,255,.08), rgba(63,185,80,.05));
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 32px;
+    }
+    .hero h1 { font-size: 26px; }
+    .hero .meta { display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
+    .hero .meta span { font-size: 13px; color: var(--text-muted); }
+    .hero .meta span strong { color: var(--text); }
+
+    /* ── ER diagram ── */
+    .er-diagram {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      margin: 16px 0;
+    }
+    .er-diagram svg { max-width: 100%; }
+
+    /* ── Scroll top ── */
+    .back-top {
+      display: inline-block;
+      margin-top: 40px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .back-top:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ══════════════════ SIDEBAR ══════════════════ -->
+<nav>
+  <div class="nav-logo">
+    <h2>⏱ Time Manager API</h2>
+    <p>ЛР1 — FastAPI</p>
+  </div>
+  <ul>
+    <li class="nav-section">Введение</li>
+    <li><a href="#overview">Обзор проекта</a></li>
+    <li><a href="#stack">Технологический стек</a></li>
+    <li><a href="#structure">Структура файлов</a></li>
+    <li><a href="#setup">Запуск приложения</a></li>
+
+    <li class="nav-section">База данных</li>
+    <li><a href="#db-connection">Подключение к БД</a></li>
+    <li><a href="#models">Модели (таблицы)</a></li>
+    <li><a href="#alembic">Миграции Alembic</a></li>
+
+    <li class="nav-section">API эндпоинты</li>
+    <li><a href="#ep-auth">Аутентификация</a></li>
+    <li><a href="#ep-users">Пользователи</a></li>
+    <li><a href="#ep-categories">Категории</a></li>
+    <li><a href="#ep-tags">Теги</a></li>
+    <li><a href="#ep-tasks">Задачи</a></li>
+    <li><a href="#ep-time">Записи времени</a></li>
+
+    <li class="nav-section">Реализация</li>
+    <li><a href="#auth-impl">JWT и безопасность</a></li>
+    <li><a href="#schemas">Pydantic схемы</a></li>
+  </ul>
+</nav>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>Лабораторная работа 1</h1>
+    <p class="subtitle">Реализация серверного приложения FastAPI — Тайм-менеджер</p>
+    <div class="meta">
+      <span><strong>Тема:</strong> Программа-тайм-менеджер</span>
+      <span><strong>Оценка:</strong> 15 баллов</span>
+      <span><strong>Фреймворк:</strong> FastAPI 0.111</span>
+      <span><strong>ORM:</strong> SQLAlchemy 2.0</span>
+      <span><strong>БД:</strong> PostgreSQL</span>
+    </div>
+  </div>
+
+  <!-- ── Обзор ── -->
+  <section id="overview">
+    <h2>Обзор проекта</h2>
+    <p>
+      Серверное приложение для управления задачами и отслеживания затраченного времени.
+      Пользователи могут создавать задачи с приоритетами и дедлайнами, организовывать их по
+      категориям и тегам, а также вести учёт потраченного времени на каждую задачу.
+    </p>
+    <p>
+      Реализована полная система аутентификации на основе JWT-токенов с хэшированием паролей
+      через <code>bcrypt</code>, что соответствует заданию на 15 баллов.
+    </p>
+  </section>
+
+  <!-- ── Стек ── -->
+  <section id="stack">
+    <h2>Технологический стек</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Компонент</th><th>Библиотека / версия</th><th>Назначение</th></tr>
+        <tr><td>Web-фреймворк</td><td><code>fastapi 0.111</code></td><td>Маршрутизация, DI, документация</td></tr>
+        <tr><td>ASGI-сервер</td><td><code>uvicorn[standard]</code></td><td>Запуск HTTP-сервера</td></tr>
+        <tr><td>ORM</td><td><code>sqlalchemy 2.0</code></td><td>Работа с таблицами PostgreSQL</td></tr>
+        <tr><td>Миграции</td><td><code>alembic 1.13</code></td><td>Управление схемой БД</td></tr>
+        <tr><td>Валидация</td><td><code>pydantic 2.7</code></td><td>Схемы запросов и ответов</td></tr>
+        <tr><td>JWT</td><td><code>python-jose[cryptography]</code></td><td>Создание и проверка токенов</td></tr>
+        <tr><td>Хэширование</td><td><code>bcrypt</code></td><td>Безопасное хранение паролей</td></tr>
+        <tr><td>Драйвер БД</td><td><code>psycopg2-binary</code></td><td>Подключение к PostgreSQL</td></tr>
+        <tr><td>Настройки</td><td><code>pydantic-settings</code></td><td>Конфигурация через .env</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Структура ── -->
+  <section id="structure">
+    <h2>Структура файлов</h2>
+<pre><code>lab1/
+├── app/
+│   ├── main.py            ← точка входа, регистрация роутеров
+│   ├── config.py          ← настройки через pydantic-settings
+│   ├── database.py        ← engine, SessionLocal, Base, get_db()
+│   ├── models/            ← SQLAlchemy ORM-модели
+│   │   ├── user.py
+│   │   ├── category.py
+│   │   ├── tag.py
+│   │   ├── task.py
+│   │   ├── task_tag.py    ← ассоциативная таблица many-to-many
+│   │   └── time_entry.py
+│   ├── schemas/           ← Pydantic-схемы (запрос / ответ)
+│   │   ├── user.py
+│   │   ├── category.py
+│   │   ├── tag.py
+│   │   ├── task.py
+│   │   ├── task_tag.py
+│   │   ├── time_entry.py
+│   │   └── token.py
+│   ├── crud/              ← функции доступа к данным
+│   │   ├── user.py
+│   │   ├── category.py
+│   │   ├── tag.py
+│   │   ├── task.py
+│   │   └── time_entry.py
+│   ├── routers/           ← API-эндпоинты
+│   │   ├── auth.py
+│   │   ├── users.py
+│   │   ├── categories.py
+│   │   ├── tags.py
+│   │   ├── tasks.py
+│   │   └── time_entries.py
+│   └── auth/              ← JWT и bcrypt
+│       ├── jwt.py
+│       └── utils.py
+├── alembic/
+│   ├── env.py
+│   ├── script.py.mako
+│   └── versions/
+│       └── 0001_initial_migration.py
+├── alembic.ini
+├── requirements.txt
+└── .env.example</code></pre>
+  </section>
+
+  <!-- ── Запуск ── -->
+  <section id="setup">
+    <h2>Запуск приложения</h2>
+<pre><code># 1. Клонировать репозиторий и перейти в папку
+cd lab1
+
+# 2. Установить зависимости
+pip install -r requirements.txt
+
+# 3. Создать .env файл
+cp .env.example .env
+# Указать DATABASE_URL и SECRET_KEY в .env
+
+# 4. Применить миграции
+alembic upgrade head
+
+# 5. Запустить сервер
+uvicorn app.main:app --reload
+# Сервер запустится на http://localhost:8000
+# Swagger UI: http://localhost:8000/docs</code></pre>
+  </section>
+
+  <!-- ══════════════════ БД ══════════════════ -->
+  <section id="db-connection">
+    <h2>Подключение к базе данных</h2>
+    <p>Файл <code>app/database.py</code> — создаёт движок SQLAlchemy, фабрику сессий и базовый класс для моделей.</p>
+<pre><code class="language-python">from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from app.config import settings
+
+# Создание движка SQLAlchemy с подключением к PostgreSQL
+engine = create_engine(settings.database_url)
+
+# Фабрика сессий — каждый запрос получает свою сессию
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+class Base(DeclarativeBase):
+    """Базовый класс для всех ORM-моделей."""
+    pass
+
+
+def get_db():
+    """
+    Dependency-функция для FastAPI.
+    Открывает сессию БД на время запроса и закрывает после.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()</code></pre>
+  </section>
+
+  <!-- ── Модели ── -->
+  <section id="models">
+    <h2>Модели данных (6 таблиц)</h2>
+
+    <!-- ER -->
+    <div class="er-diagram">
+      <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg" style="max-width:680px">
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#8b949e"/>
+          </marker>
+        </defs>
+        <!-- users -->
+        <rect x="20" y="130" width="120" height="80" rx="6" fill="#1c3a5e" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="80" y="153" text-anchor="middle" font-size="12" font-weight="bold" fill="#58a6ff">users</text>
+        <text x="80" y="170" text-anchor="middle" font-size="10" fill="#c9d1d9">id, username</text>
+        <text x="80" y="183" text-anchor="middle" font-size="10" fill="#c9d1d9">email, password</text>
+        <text x="80" y="196" text-anchor="middle" font-size="10" fill="#c9d1d9">is_active</text>
+        <!-- categories -->
+        <rect x="200" y="20" width="130" height="80" rx="6" fill="#1a3a2a" stroke="#3fb950" stroke-width="1.5"/>
+        <text x="265" y="43" text-anchor="middle" font-size="12" font-weight="bold" fill="#3fb950">categories</text>
+        <text x="265" y="60" text-anchor="middle" font-size="10" fill="#c9d1d9">id, name</text>
+        <text x="265" y="73" text-anchor="middle" font-size="10" fill="#c9d1d9">color</text>
+        <text x="265" y="86" text-anchor="middle" font-size="10" fill="#c9d1d9">owner_id →users</text>
+        <!-- tasks -->
+        <rect x="200" y="140" width="130" height="100" rx="6" fill="#21262d" stroke="#d29922" stroke-width="1.5"/>
+        <text x="265" y="163" text-anchor="middle" font-size="12" font-weight="bold" fill="#d29922">tasks</text>
+        <text x="265" y="180" text-anchor="middle" font-size="10" fill="#c9d1d9">id, title, status</text>
+        <text x="265" y="193" text-anchor="middle" font-size="10" fill="#c9d1d9">priority, deadline</text>
+        <text x="265" y="206" text-anchor="middle" font-size="10" fill="#c9d1d9">owner_id →users</text>
+        <text x="265" y="219" text-anchor="middle" font-size="10" fill="#c9d1d9">category_id →cat.</text>
+        <!-- tags -->
+        <rect x="200" y="280" width="130" height="60" rx="6" fill="#3a1a1a" stroke="#f78166" stroke-width="1.5"/>
+        <text x="265" y="303" text-anchor="middle" font-size="12" font-weight="bold" fill="#f78166">tags</text>
+        <text x="265" y="320" text-anchor="middle" font-size="10" fill="#c9d1d9">id, name</text>
+        <!-- task_tags -->
+        <rect x="390" y="260" width="140" height="80" rx="6" fill="#3a2e1a" stroke="#d29922" stroke-width="1.5"/>
+        <text x="460" y="283" text-anchor="middle" font-size="12" font-weight="bold" fill="#d29922">task_tags</text>
+        <text x="460" y="300" text-anchor="middle" font-size="10" fill="#c9d1d9">task_id, tag_id</text>
+        <text x="460" y="313" text-anchor="middle" font-size="10" fill="#f78166">note ← доп. поле</text>
+        <text x="460" y="326" text-anchor="middle" font-size="10" fill="#c9d1d9">added_at</text>
+        <!-- time_entries -->
+        <rect x="390" y="130" width="140" height="100" rx="6" fill="#1c3a5e" stroke="#58a6ff" stroke-width="1.5"/>
+        <text x="460" y="153" text-anchor="middle" font-size="12" font-weight="bold" fill="#58a6ff">time_entries</text>
+        <text x="460" y="170" text-anchor="middle" font-size="10" fill="#c9d1d9">id, task_id</text>
+        <text x="460" y="183" text-anchor="middle" font-size="10" fill="#c9d1d9">duration_minutes</text>
+        <text x="460" y="196" text-anchor="middle" font-size="10" fill="#c9d1d9">started_at, ended_at</text>
+        <text x="460" y="209" text-anchor="middle" font-size="10" fill="#c9d1d9">comment</text>
+        <!-- arrows -->
+        <!-- users → categories (1:M) -->
+        <line x1="140" y1="155" x2="200" y2="65" stroke="#8b949e" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <!-- users → tasks (1:M) -->
+        <line x1="140" y1="175" x2="200" y2="185" stroke="#8b949e" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <!-- categories → tasks (1:M) -->
+        <line x1="265" y1="100" x2="265" y2="140" stroke="#8b949e" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <!-- tasks → time_entries (1:M) -->
+        <line x1="330" y1="185" x2="390" y2="185" stroke="#8b949e" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <!-- tasks → task_tags (M:M) -->
+        <line x1="330" y1="220" x2="390" y2="290" stroke="#8b949e" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+        <!-- tags → task_tags -->
+        <line x1="330" y1="310" x2="390" y2="310" stroke="#8b949e" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+        <!-- labels -->
+        <text x="148" y="148" font-size="10" fill="#8b949e">1:M</text>
+        <text x="148" y="180" font-size="10" fill="#8b949e">1:M</text>
+        <text x="272" y="125" font-size="10" fill="#8b949e">1:M</text>
+        <text x="345" y="178" font-size="10" fill="#8b949e">1:M</text>
+        <text x="345" y="262" font-size="10" fill="#8b949e">M:M</text>
+      </svg>
+    </div>
+
+    <h3>users — Пользователи</h3>
+    <div class="schema-box">
+      <div class="field"><span class="field-name">id</span> <span class="field-type">Integer PK</span></div>
+      <div class="field"><span class="field-name">username</span> <span class="field-type">String(50) UNIQUE</span></div>
+      <div class="field"><span class="field-name">email</span> <span class="field-type">String(255) UNIQUE</span></div>
+      <div class="field"><span class="field-name">hashed_password</span> <span class="field-type">String(255)</span></div>
+      <div class="field"><span class="field-name">is_active</span> <span class="field-type">Boolean</span> <span class="field-note">default=True</span></div>
+      <div class="field"><span class="field-name">created_at</span> <span class="field-type">DateTime</span></div>
+    </div>
+
+<pre><code class="language-python">class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    tasks: Mapped[list["Task"]] = relationship("Task", back_populates="owner", cascade="all, delete-orphan")
+    categories: Mapped[list["Category"]] = relationship("Category", back_populates="owner", cascade="all, delete-orphan")</code></pre>
+
+    <h3>tasks — Задачи</h3>
+    <div class="schema-box">
+      <div class="field"><span class="field-name">id</span> <span class="field-type">Integer PK</span></div>
+      <div class="field"><span class="field-name">title</span> <span class="field-type">String(200)</span></div>
+      <div class="field"><span class="field-name">description</span> <span class="field-type">Text nullable</span></div>
+      <div class="field"><span class="field-name">priority</span> <span class="field-type">Enum(low/medium/high/critical)</span></div>
+      <div class="field"><span class="field-name">status</span> <span class="field-type">Enum(todo/in_progress/done/cancelled)</span></div>
+      <div class="field"><span class="field-name">deadline</span> <span class="field-type">DateTime nullable</span></div>
+      <div class="field"><span class="field-name">estimated_minutes</span> <span class="field-type">Integer nullable</span></div>
+      <div class="field"><span class="field-name">owner_id</span> <span class="field-type">FK → users.id</span></div>
+      <div class="field"><span class="field-name">category_id</span> <span class="field-type">FK → categories.id nullable</span></div>
+    </div>
+
+    <h3>task_tags — Ассоциативная таблица (many-to-many)</h3>
+    <p>Ключевая особенность: таблица содержит дополнительные поля помимо внешних ключей.</p>
+    <div class="schema-box">
+      <div class="field"><span class="field-name">task_id</span> <span class="field-type">FK → tasks.id (PK)</span></div>
+      <div class="field"><span class="field-name">tag_id</span> <span class="field-type">FK → tags.id (PK)</span></div>
+      <div class="field"><span class="field-name">note</span> <span class="field-type">String(255) nullable</span> <span class="field-note">← заметка о причине добавления тега</span></div>
+      <div class="field"><span class="field-name">added_at</span> <span class="field-type">DateTime</span> <span class="field-note">← время добавления</span></div>
+    </div>
+
+<pre><code class="language-python">class TaskTag(Base):
+    __tablename__ = "task_tags"
+
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"), primary_key=True)
+    tag_id: Mapped[int] = mapped_column(ForeignKey("tags.id"), primary_key=True)
+
+    # Дополнительное поле ассоциативной сущности
+    note: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    task: Mapped["Task"] = relationship("Task", back_populates="tag_associations")
+    tag: Mapped["Tag"] = relationship("Tag", back_populates="task_associations")</code></pre>
+
+    <h3>time_entries — Записи времени</h3>
+    <div class="schema-box">
+      <div class="field"><span class="field-name">id</span> <span class="field-type">Integer PK</span></div>
+      <div class="field"><span class="field-name">task_id</span> <span class="field-type">FK → tasks.id</span></div>
+      <div class="field"><span class="field-name">duration_minutes</span> <span class="field-type">Integer</span></div>
+      <div class="field"><span class="field-name">started_at</span> <span class="field-type">DateTime</span></div>
+      <div class="field"><span class="field-name">ended_at</span> <span class="field-type">DateTime nullable</span></div>
+      <div class="field"><span class="field-name">comment</span> <span class="field-type">Text nullable</span></div>
+    </div>
+  </section>
+
+  <!-- ── Alembic ── -->
+  <section id="alembic">
+    <h2>Миграции Alembic</h2>
+    <p>Настроен файл <code>alembic/env.py</code> — Alembic импортирует <code>Base.metadata</code> для автогенерации.</p>
+<pre><code class="language-python"># alembic/env.py (ключевая часть)
+from app.database import Base
+import app.models  # регистрируем все модели
+
+target_metadata = Base.metadata</code></pre>
+    <p>Команды для работы с миграциями:</p>
+<pre><code># Применить все миграции
+alembic upgrade head
+
+# Создать новую автомиграцию
+alembic revision --autogenerate -m "описание"
+
+# Откатить последнюю миграцию
+alembic downgrade -1</code></pre>
+  </section>
+
+  <!-- ══════════════════ ENDPOINTS ══════════════════ -->
+  <section id="ep-auth">
+    <h2>Аутентификация <code>/auth</code></h2>
+
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="endpoint-path">/auth/register</span>
+        <span class="endpoint-desc">Регистрация нового пользователя</span>
+      </div>
+      <div class="endpoint-body">
+        <p><strong>Body (JSON):</strong></p>
+<pre><code>{ "username": "john", "email": "john@example.com", "password": "secret123" }</code></pre>
+        <p><strong>Response 201:</strong> объект <code>UserRead</code></p>
+        <p>Проверяет уникальность username и email, хэширует пароль через bcrypt.</p>
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="endpoint-path">/auth/login</span>
+        <span class="endpoint-desc">Получить JWT access token</span>
+      </div>
+      <div class="endpoint-body">
+        <p><strong>Body (form-data):</strong> <code>username</code>, <code>password</code></p>
+        <p><strong>Response 200:</strong></p>
+<pre><code>{ "access_token": "eyJ...", "token_type": "bearer" }</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="ep-users">
+    <h2>Пользователи <code>/users</code></h2>
+    <p><span class="badge badge-blue">🔒 JWT required</span> — все эндпоинты требуют заголовок <code>Authorization: Bearer &lt;token&gt;</code></p>
+
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="endpoint-path">/users/me</span>
+        <span class="endpoint-desc">Информация о текущем пользователе</span>
+      </div>
+      <div class="endpoint-body"><p>Возвращает профиль авторизованного пользователя.</p></div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="endpoint-path">/users/</span>
+        <span class="endpoint-desc">Список всех пользователей</span>
+      </div>
+      <div class="endpoint-body"><p>Параметры: <code>skip=0</code>, <code>limit=100</code></p></div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="endpoint-path">/users/{user_id}</span>
+        <span class="endpoint-desc">Пользователь по ID</span>
+      </div>
+      <div class="endpoint-body"><p>404 если не найден.</p></div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span>
+        <span class="endpoint-path">/users/me</span>
+        <span class="endpoint-desc">Обновить профиль</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Body: <code>{"username": "new_name", "email": "new@mail.com"}</code> — поля опциональны.</p>
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="endpoint-path">/users/me/change-password</span>
+        <span class="endpoint-desc">Смена пароля</span>
+      </div>
+      <div class="endpoint-body">
+<pre><code>{ "old_password": "secret123", "new_password": "newpass456" }</code></pre>
+        <p>Response: <code>204 No Content</code>. Проверяет старый пароль перед сменой.</p>
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method DELETE">DELETE</span>
+        <span class="endpoint-path">/users/me</span>
+        <span class="endpoint-desc">Удалить аккаунт</span>
+      </div>
+      <div class="endpoint-body"><p>Каскадно удаляет задачи и категории. Response: <code>204</code>.</p></div>
+    </div>
+  </section>
+
+  <section id="ep-categories">
+    <h2>Категории <code>/categories</code></h2>
+
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="endpoint-path">/categories/</span>
+        <span class="endpoint-desc">Все категории пользователя</span>
+      </div>
+      <div class="endpoint-body"><p>Возвращает только категории текущего пользователя.</p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="endpoint-path">/categories/</span>
+        <span class="endpoint-desc">Создать категорию</span>
+      </div>
+      <div class="endpoint-body">
+<pre><code>{ "name": "Работа", "color": "#FF5733" }</code></pre>
+      </div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="endpoint-path">/categories/{category_id}</span>
+        <span class="endpoint-desc">Категория по ID</span>
+      </div>
+      <div class="endpoint-body"><p>404 если не найдена или принадлежит другому пользователю.</p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span>
+        <span class="endpoint-path">/categories/{category_id}</span>
+        <span class="endpoint-desc">Обновить категорию</span>
+      </div>
+      <div class="endpoint-body"><p>Частичное обновление полей <code>name</code> и/или <code>color</code>.</p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method DELETE">DELETE</span>
+        <span class="endpoint-path">/categories/{category_id}</span>
+        <span class="endpoint-desc">Удалить категорию</span>
+      </div>
+      <div class="endpoint-body"><p>Response: <code>204</code>.</p></div>
+    </div>
+  </section>
+
+  <section id="ep-tags">
+    <h2>Теги <code>/tags</code></h2>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="endpoint-path">/tags/</span>
+        <span class="endpoint-desc">Список тегов</span>
+      </div>
+      <div class="endpoint-body"><p>Теги общие для всех пользователей.</p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method POST">POST</span><span class="endpoint-path">/tags/</span>
+        <span class="endpoint-desc">Создать тег</span>
+      </div>
+      <div class="endpoint-body"><pre><code>{ "name": "срочно" }</code></pre><p>400 если тег уже существует.</p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="endpoint-path">/tags/{tag_id}</span>
+        <span class="endpoint-desc">Тег по ID</span>
+      </div>
+      <div class="endpoint-body"><p>404 если не найден.</p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method DELETE">DELETE</span><span class="endpoint-path">/tags/{tag_id}</span>
+        <span class="endpoint-desc">Удалить тег</span>
+      </div>
+      <div class="endpoint-body"><p>Response: <code>204</code>.</p></div>
+    </div>
+  </section>
+
+  <section id="ep-tasks">
+    <h2>Задачи <code>/tasks</code></h2>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="endpoint-path">/tasks/</span>
+        <span class="endpoint-desc">Все задачи пользователя</span>
+      </div>
+      <div class="endpoint-body"><p>Возвращает задачи текущего пользователя, <code>skip</code>/<code>limit</code>.</p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method POST">POST</span><span class="endpoint-path">/tasks/</span>
+        <span class="endpoint-desc">Создать задачу</span>
+      </div>
+      <div class="endpoint-body">
+<pre><code>{
+  "title": "Написать тесты",
+  "description": "Покрыть основные сценарии",
+  "priority": "high",
+  "status": "todo",
+  "deadline": "2024-12-31T23:59:00",
+  "estimated_minutes": 120,
+  "category_id": 1
+}</code></pre>
+      </div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method GET">GET</span><span class="endpoint-path">/tasks/{task_id}</span>
+        <span class="endpoint-desc">Задача с тегами и записями времени</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Использует <strong>eager loading</strong> (<code>joinedload</code>) — возвращает вложенные объекты:</p>
+<pre><code>{
+  "id": 1, "title": "Написать тесты",
+  "tag_associations": [
+    { "tag_id": 2, "task_id": 1, "note": "нужно срочно", "added_at": "..." }
+  ],
+  "time_entries": [
+    { "id": 1, "duration_minutes": 45, "started_at": "...", "comment": "..." }
+  ]
+}</code></pre>
+      </div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span><span class="endpoint-path">/tasks/{task_id}</span>
+        <span class="endpoint-desc">Обновить задачу</span>
+      </div>
+      <div class="endpoint-body"><p>Любые поля опциональны. Например: <code>{"status": "done"}</code></p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method DELETE">DELETE</span><span class="endpoint-path">/tasks/{task_id}</span>
+        <span class="endpoint-desc">Удалить задачу</span>
+      </div>
+      <div class="endpoint-body"><p>Каскадно удаляет теги и записи времени. Response: <code>204</code>.</p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method POST">POST</span><span class="endpoint-path">/tasks/{task_id}/tags</span>
+        <span class="endpoint-desc">Добавить тег к задаче</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Создаёт запись в ассоциативной таблице <code>task_tags</code>:</p>
+<pre><code>{ "tag_id": 3, "note": "приоритетная задача" }</code></pre>
+      </div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method DELETE">DELETE</span><span class="endpoint-path">/tasks/{task_id}/tags/{tag_id}</span>
+        <span class="endpoint-desc">Убрать тег с задачи</span>
+      </div>
+      <div class="endpoint-body"><p>Response: <code>204</code>. 404 если тег не прикреплён.</p></div>
+    </div>
+  </section>
+
+  <section id="ep-time">
+    <h2>Записи времени <code>/tasks/{task_id}/time-entries</code></h2>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method GET">GET</span>
+        <span class="endpoint-path">/tasks/{task_id}/time-entries/</span>
+        <span class="endpoint-desc">Все записи времени для задачи</span>
+      </div>
+      <div class="endpoint-body"><p>Возвращает список записей затраченного времени.</p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method POST">POST</span>
+        <span class="endpoint-path">/tasks/{task_id}/time-entries/</span>
+        <span class="endpoint-desc">Добавить запись времени</span>
+      </div>
+      <div class="endpoint-body">
+<pre><code>{
+  "duration_minutes": 90,
+  "started_at": "2024-03-15T09:00:00",
+  "ended_at": "2024-03-15T10:30:00",
+  "comment": "Написал основную логику"
+}</code></pre>
+      </div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method PATCH">PATCH</span>
+        <span class="endpoint-path">/tasks/{task_id}/time-entries/{entry_id}</span>
+        <span class="endpoint-desc">Обновить запись</span>
+      </div>
+      <div class="endpoint-body"><p>Частичное обновление любых полей записи.</p></div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-header" onclick="toggle(this)">
+        <span class="method DELETE">DELETE</span>
+        <span class="endpoint-path">/tasks/{task_id}/time-entries/{entry_id}</span>
+        <span class="endpoint-desc">Удалить запись</span>
+      </div>
+      <div class="endpoint-body"><p>Response: <code>204</code>.</p></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ Реализация ══════════════════ -->
+  <section id="auth-impl">
+    <h2>JWT и безопасность</h2>
+    <p>Реализована вручную без использования сторонних auth-библиотек (только <code>python-jose</code> для JWT и <code>bcrypt</code> для паролей).</p>
+
+    <h3>Хэширование паролей (app/auth/utils.py)</h3>
+<pre><code class="language-python">import bcrypt
+
+
+def hash_password(password: str) -> str:
+    """Хэш пароля: gensalt() даёт новую случайную соль на каждый пароль."""
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """checkpw сам достаёт соль из хэша и сравнивает за постоянное время."""
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))</code></pre>
+
+    <h3>Создание JWT-токена (app/auth/jwt.py)</h3>
+<pre><code class="language-python">def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (
+        expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
+    )
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)</code></pre>
+
+    <h3>Dependency для защищённых эндпоинтов</h3>
+<pre><code class="language-python">def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    token_data = decode_access_token(token)
+    user = get_user_by_username(db, username=token_data.username)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Пользователь неактивен")
+    return user</code></pre>
+  </section>
+
+  <section id="schemas">
+    <h2>Pydantic схемы</h2>
+    <p>Аннотация типов во всех схемах с использованием Pydantic v2. Отдельные схемы для создания и чтения.</p>
+
+    <h3>TaskReadDetailed — вложенные объекты (one-to-many, many-to-many)</h3>
+<pre><code class="language-python">class TaskReadDetailed(TaskRead):
+    """Задача с вложенными тегами и записями времени."""
+    tag_associations: list[TaskTagRead] = []
+    time_entries: list[TimeEntryRead] = []
+
+    model_config = {"from_attributes": True}</code></pre>
+
+    <h3>Eager loading в CRUD (app/crud/task.py)</h3>
+<pre><code class="language-python">def get_task_detailed(db: Session, task_id: int, owner_id: int) -> Task | None:
+    return (
+        db.query(Task)
+        .options(
+            joinedload(Task.tag_associations).joinedload(TaskTag.tag),
+            joinedload(Task.time_entries),
+        )
+        .filter(Task.id == task_id, Task.owner_id == owner_id)
+        .first()
+    )</code></pre>
+  </section>
+
+  <a href="#" class="back-top">↑ Наверх</a>
+</main>
+</div>
+
+<script>
+function toggle(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+</script>
+</body>
+</html>

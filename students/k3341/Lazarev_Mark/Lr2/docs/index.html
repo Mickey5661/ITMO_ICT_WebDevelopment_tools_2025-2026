@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>ЛР2 — Потоки. Процессы. Асинхронность.</title>
+  <style>
+    :root{--bg:#0d1117;--surf:#161b22;--surf2:#21262d;--border:#30363d;--accent:#58a6ff;--green:#3fb950;--yellow:#d29922;--red:#f78166;--purple:#bc8cff;--text:#c9d1d9;--muted:#8b949e;--code:#1f2937}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
+    a{color:var(--accent)}
+    .layout{display:flex;min-height:100vh}
+    nav{width:260px;min-width:260px;background:var(--surf);border-right:1px solid var(--border);padding:24px 0;position:sticky;top:0;height:100vh;overflow-y:auto}
+    .nav-logo{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px}
+    .nav-logo h2{font-size:14px;color:var(--accent);font-weight:700}
+    .nav-logo p{font-size:12px;color:var(--muted);margin-top:3px}
+    nav ul{list-style:none}
+    nav ul li a{display:block;padding:5px 20px;font-size:13px;color:var(--muted);border-left:2px solid transparent;transition:.15s}
+    nav ul li a:hover{color:var(--text);border-left-color:var(--accent);background:rgba(88,166,255,.07);text-decoration:none}
+    .nav-section{padding:12px 20px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+    main{flex:1;padding:40px 48px;max-width:960px}
+    h1{font-size:26px;font-weight:700;margin-bottom:6px}
+    h2{font-size:20px;font-weight:600;margin:48px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+    h3{font-size:15px;font-weight:600;margin:24px 0 8px;color:var(--accent)}
+    h4{font-size:13px;font-weight:600;margin:14px 0 6px;color:var(--muted)}
+    p{margin-bottom:10px;font-size:14px}
+    .subtitle{color:var(--muted);font-size:14px;margin-bottom:28px}
+    pre{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:12.5px;line-height:1.55;margin:10px 0 18px}
+    code{font-family:"JetBrains Mono","Fira Code",Consolas,monospace}
+    p code,li code{background:var(--code);padding:2px 5px;border-radius:3px;font-size:12px;border:1px solid var(--border)}
+    .hero{background:linear-gradient(135deg,rgba(88,166,255,.08),rgba(63,185,80,.05));border:1px solid var(--border);border-radius:12px;padding:26px 30px;margin-bottom:30px}
+    .hero .meta{display:flex;gap:20px;margin-top:14px;flex-wrap:wrap}
+    .hero .meta span{font-size:13px;color:var(--muted)}
+    .hero .meta span strong{color:var(--text)}
+    /* Concept cards */
+    .cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:16px 0}
+    @media(max-width:700px){.cards{grid-template-columns:1fr}}
+    .card{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:16px}
+    .card h4{margin-top:0;font-size:13px}
+    .card p{font-size:12px;color:var(--muted);margin:0}
+    .card.threading h4{color:var(--accent)}
+    .card.multiproc h4{color:var(--green)}
+    .card.async_ h4{color:var(--purple)}
+    /* Comparison table */
+    .table-wrap{overflow-x:auto;margin:14px 0}
+    table{border-collapse:collapse;width:100%;font-size:13px}
+    th{background:var(--surf2);padding:9px 12px;text-align:left;font-weight:600;border:1px solid var(--border)}
+    td{padding:8px 12px;border:1px solid var(--border);vertical-align:top}
+    tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+    /* Benchmark table */
+    .bench-table{border-collapse:collapse;width:100%;font-size:13px;margin:14px 0}
+    .bench-table th{background:var(--surf2);padding:9px 14px;border:1px solid var(--border)}
+    .bench-table td{padding:9px 14px;border:1px solid var(--border);text-align:center}
+    .bench-table .winner{color:var(--green);font-weight:700}
+    .bench-table .slow{color:var(--red)}
+    /* Badges */
+    .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;margin-right:4px}
+    .badge-blue{background:rgba(88,166,255,.15);color:var(--accent)}
+    .badge-green{background:rgba(63,185,80,.15);color:var(--green)}
+    .badge-purple{background:rgba(188,140,255,.15);color:var(--purple)}
+    .badge-yellow{background:rgba(210,153,34,.15);color:var(--yellow)}
+    /* GIL box */
+    .note{background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.3);border-radius:8px;padding:14px 16px;margin:14px 0;font-size:13px}
+    .note strong{color:var(--yellow)}
+    .endpoint{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
+    .ep-head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surf2)}
+    .ep-body{padding:12px 16px;border-top:1px solid var(--border);font-size:13px;color:var(--muted)}
+    pre.result{background:#0a1628;border-color:#1e3a5f}
+    .back-top{display:inline-block;margin-top:40px;font-size:13px;color:var(--muted)}
+  </style>
+</head>
+<body>
+<div class="layout">
+
+<nav>
+  <div class="nav-logo">
+    <h2>⚡ ЛР2 — Параллелизм</h2>
+    <p>Потоки · Процессы · Async</p>
+  </div>
+  <ul>
+    <li class="nav-section">Теория</li>
+    <li><a href="#theory">Обзор подходов</a></li>
+    <li><a href="#gil">GIL в Python</a></li>
+    <li><a href="#when">Когда что использовать</a></li>
+    <li class="nav-section">Задача 1</li>
+    <li><a href="#task1">Описание</a></li>
+    <li><a href="#task1-threading">Threading</a></li>
+    <li><a href="#task1-mp">Multiprocessing</a></li>
+    <li><a href="#task1-async">Async</a></li>
+    <li><a href="#task1-results">Результаты</a></li>
+    <li class="nav-section">Задача 2</li>
+    <li><a href="#task2">Описание</a></li>
+    <li><a href="#task2-threading">Threading</a></li>
+    <li><a href="#task2-mp">Multiprocessing</a></li>
+    <li><a href="#task2-async">Async</a></li>
+    <li><a href="#task2-results">Результаты</a></li>
+    <li class="nav-section">Выводы</li>
+    <li><a href="#conclusions">Сравнение и анализ</a></li>
+  </ul>
+</nav>
+
+<main>
+  <div class="hero">
+    <h1>Лабораторная работа 2</h1>
+    <p class="subtitle">Потоки. Процессы. Асинхронность в Python</p>
+    <div class="meta">
+      <span><strong>Задача 1:</strong> Сумма 1..N (CPU-bound)</span>
+      <span><strong>Задача 2:</strong> Парсинг веб-страниц (I/O-bound)</span>
+      <span><strong>N:</strong> 10 000 000</span>
+    </div>
+  </div>
+
+  <!-- ══ ТЕОРИЯ ══ -->
+  <section id="theory">
+    <h2>Обзор подходов</h2>
+    <div class="cards">
+      <div class="card threading">
+        <h4>🧵 Threading</h4>
+        <p>Потоки разделяют одну память процесса. Переключение дешёвое, но GIL ограничивает параллелизм для CPU-bound задач. Хорош для I/O-bound работы.</p>
+      </div>
+      <div class="card multiproc">
+        <h4>🔀 Multiprocessing</h4>
+        <p>Каждый процесс — отдельный интерпретатор Python с собственной памятью. Обходит GIL. Лучший выбор для CPU-bound задач. Дороже по памяти.</p>
+      </div>
+      <div class="card async_">
+        <h4>⚡ Async / Await</h4>
+        <p>Однопоточная кооперативная многозадачность. Event loop переключается между корутинами когда они ждут I/O. Максимально эффективен для сетевых задач.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="gil">
+    <h2>GIL — Global Interpreter Lock</h2>
+    <p>GIL — мьютекс внутри CPython, который позволяет только одному потоку одновременно исполнять байткод Python. Это решение упрощает управление памятью, но ограничивает параллелизм.</p>
+    <div class="note">
+      <strong>⚠ Важно:</strong> GIL освобождается во время I/O операций (сеть, диск). Поэтому <code>threading</code> эффективен для I/O-bound задач, но бесполезен для CPU-bound — там нужен <code>multiprocessing</code>.
+    </div>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Тип задачи</th><th>Пример</th><th>Лучший подход</th></tr>
+        <tr><td>CPU-bound</td><td>Вычисления, сжатие, ML</td><td><span class="badge badge-green">multiprocessing</span></td></tr>
+        <tr><td>I/O-bound (сеть)</td><td>HTTP-запросы, парсинг</td><td><span class="badge badge-purple">async/await</span></td></tr>
+        <tr><td>I/O-bound (файлы)</td><td>Чтение/запись файлов</td><td><span class="badge badge-blue">threading</span></td></tr>
+        <tr><td>Смешанный</td><td>Парсинг + обработка</td><td><span class="badge badge-green">multiprocessing</span> + <span class="badge badge-purple">async</span></td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section id="when">
+    <h2>Когда что использовать</h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Критерий</th><th>Threading</th><th>Multiprocessing</th><th>Async</th></tr>
+        <tr><td>CPU-bound задачи</td><td>❌ GIL мешает</td><td>✅ Обходит GIL</td><td>❌ Однопоточный</td></tr>
+        <tr><td>I/O-bound задачи</td><td>✅ Хорошо</td><td>⚠ Избыточно</td><td>✅ Лучший выбор</td></tr>
+        <tr><td>Потребление памяти</td><td>Низкое (общая память)</td><td>Высокое (копия памяти)</td><td>Очень низкое</td></tr>
+        <tr><td>Сложность кода</td><td>Средняя (lock/race)</td><td>Средняя (IPC)</td><td>Высокая (event loop)</td></tr>
+        <tr><td>Старт задачи</td><td>Быстрый</td><td>Медленный (~100ms)</td><td>Мгновенный</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══ ЗАДАЧА 1 ══ -->
+  <section id="task1">
+    <h2>Задача 1 — Вычисление суммы чисел 1..N</h2>
+    <p>Каждая программа разбивает диапазон <code>[1, N]</code> на равные части и вычисляет частичные суммы параллельно. Результаты объединяются и проверяются по формуле <code>N*(N+1)/2</code>.</p>
+    <p>Используется <code>N = 10_000_000</code> (10 млн) для демонстрации. Код аналогичен для <code>N = 10_000_000_000_000</code> — только дольше выполняется.</p>
+  </section>
+
+  <section id="task1-threading">
+    <h3>🧵 Threading — вычисление суммы</h3>
+    <p>Потоки разделяют память — частичные суммы записываются в общий словарь через <code>Lock</code>. Из-за GIL потоки не выполняются по-настоящему параллельно для CPU-bound вычислений.</p>
+<pre><code>def calculate_sum(start: int, end: int, thread_id: int) -> None:
+    partial = sum(range(start, end + 1))
+    with lock:                     # защита от race condition
+        results[thread_id] = partial
+
+def main(n: int = N_DEMO) -> float:
+    chunk = n // NUM_THREADS
+    threads = []
+    for i in range(NUM_THREADS):
+        start = i * chunk + 1
+        end = (i + 1) * chunk if i < NUM_THREADS - 1 else n
+        t = threading.Thread(target=calculate_sum, args=(start, end, i))
+        threads.append(t)
+
+    t0 = time.perf_counter()
+    for t in threads: t.start()
+    for t in threads: t.join()    # ждём завершения всех потоков
+
+    total = sum(results.values())
+    return time.perf_counter() - t0</code></pre>
+  </section>
+
+  <section id="task1-mp">
+    <h3>🔀 Multiprocessing — вычисление суммы</h3>
+    <p><code>Pool.starmap()</code> распределяет задачи по процессам и автоматически собирает результаты через IPC (межпроцессное взаимодействие). Каждый процесс работает независимо, обходя GIL.</p>
+<pre><code>def calculate_sum(start: int, end: int) -> int:
+    return sum(range(start, end + 1))   # выполняется в отдельном процессе
+
+def main(n: int = N_DEMO) -> float:
+    chunk = n // NUM_PROCESSES
+    ranges = [(i*chunk+1, (i+1)*chunk if i<NUM_PROCESSES-1 else n)
+              for i in range(NUM_PROCESSES)]
+
+    t0 = time.perf_counter()
+    with multiprocessing.Pool(processes=NUM_PROCESSES) as pool:
+        partial_sums = pool.starmap(calculate_sum, ranges)
+
+    total = sum(partial_sums)
+    return time.perf_counter() - t0</code></pre>
+  </section>
+
+  <section id="task1-async">
+    <h3>⚡ Async — вычисление суммы</h3>
+    <p>Чистый asyncio не поможет с CPU-bound задачами. Решение: <code>loop.run_in_executor(ProcessPoolExecutor)</code> — задачи отправляются в процессы, а event loop ожидает их асинхронно через <code>await</code>.</p>
+<pre><code>def calculate_sum(start: int, end: int) -> int:
+    return sum(range(start, end + 1))   # синхронная функция для executor
+
+async def async_calculate_sum(executor, start, end) -> int:
+    loop = asyncio.get_running_loop()
+    # run_in_executor не блокирует event loop
+    return await loop.run_in_executor(executor, calculate_sum, start, end)
+
+async def main_async(n: int = N_DEMO) -> float:
+    with ProcessPoolExecutor(max_workers=NUM_WORKERS) as executor:
+        tasks = [async_calculate_sum(executor, start, end)
+                 for start, end in chunks]
+        t0 = time.perf_counter()
+        partial_sums = await asyncio.gather(*tasks)  # все параллельно
+
+    total = sum(partial_sums)
+    return time.perf_counter() - t0</code></pre>
+  </section>
+
+  <section id="task1-results">
+    <h3>📊 Результаты Задачи 1 (N = 10 000 000)</h3>
+    <table class="bench-table">
+      <tr><th>Подход</th><th>Потоков/процессов</th><th>Время (сек)</th><th>Примечание</th></tr>
+      <tr><td>Однопоточный (baseline)</td><td>1</td><td>~0.35</td><td>Эталон</td></tr>
+      <tr class="slow"><td>Threading</td><td>4</td><td>~0.40</td><td>GIL — хуже baseline</td></tr>
+      <tr class="winner"><td>Multiprocessing</td><td>4</td><td>~0.12</td><td>✅ Лучший для CPU-bound</td></tr>
+      <tr><td>Async + ProcessPool</td><td>4</td><td>~0.13</td><td>Близко к multiprocessing</td></tr>
+    </table>
+    <p><strong>Вывод:</strong> Threading медленнее однопоточного из-за накладных расходов на переключение при заблокированном GIL. Multiprocessing и Async+ProcessPool дают ~3x ускорение на 4 ядрах.</p>
+  </section>
+
+  <!-- ══ ЗАДАЧА 2 ══ -->
+  <section id="task2">
+    <h2>Задача 2 — Параллельный парсинг веб-страниц</h2>
+    <p>Каждая программа парсит 8 веб-сайтов, извлекает <code>&lt;title&gt;</code> страницы и сохраняет результат в базу данных из ЛР1 (таблица <code>tasks</code>).</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>URL</th><th>Что сохраняется</th></tr>
+        <tr><td>python.org</td><td>Заголовок → название задачи в tasks</td></tr>
+        <tr><td>fastapi.tiangolo.com</td><td>URL → описание задачи</td></tr>
+        <tr><td>docs.python.org/3/</td><td>Пользователь: parser_bot</td></tr>
+        <tr><td>pypi.org, realpython.com, habr.com, github.com, stackoverflow.com</td><td>Аналогично</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section id="task2-threading">
+    <h3>🧵 Threading — парсинг</h3>
+    <p>Каждый URL парсится в отдельном потоке. Это эффективно: пока один поток ждёт ответа от сервера (I/O), GIL освобождается и другие потоки работают. Каждый поток создаёт своё соединение с БД.</p>
+<pre><code>def parse_and_save(url: str) -> None:
+    response = requests.get(url, timeout=10)
+    soup = BeautifulSoup(response.text, "html.parser")
+    title = soup.title.string.strip() if soup.title else "Без заголовка"
+
+    # Каждый поток — своё соединение с БД
+    conn = get_connection()
+    user_id = ensure_parser_user(conn)
+    save_parsed_result(conn, user_id, title, url)
+    conn.close()
+
+def main() -> float:
+    threads = [threading.Thread(target=parse_and_save, args=(url,))
+               for url in URLS]
+    t0 = time.perf_counter()
+    for t in threads: t.start()
+    for t in threads: t.join()
+    return time.perf_counter() - t0</code></pre>
+  </section>
+
+  <section id="task2-mp">
+    <h3>🔀 Multiprocessing — парсинг</h3>
+    <p>Каждый URL обрабатывается в отдельном процессе. Соединения с БД нельзя передавать между процессами — каждый создаёт своё. Для I/O задач это избыточно из-за накладных расходов на запуск процессов.</p>
+<pre><code>def parse_and_save(url: str) -> dict:
+    response = requests.get(url, timeout=10)
+    title = BeautifulSoup(response.text, "html.parser").title.string.strip()
+
+    # Обязательно новое соединение — нельзя шарить между процессами!
+    conn = get_connection()
+    user_id = ensure_parser_user(conn)
+    save_parsed_result(conn, user_id, title, url)
+    conn.close()
+    return {"url": url, "title": title, "status": "ok"}
+
+def main() -> float:
+    t0 = time.perf_counter()
+    with multiprocessing.Pool(processes=len(URLS)) as pool:
+        results = pool.map(parse_and_save, URLS)
+    return time.perf_counter() - t0</code></pre>
+  </section>
+
+  <section id="task2-async">
+    <h3>⚡ Async — парсинг (aiohttp)</h3>
+    <p><code>aiohttp</code> делает HTTP-запросы асинхронно. <code>asyncio.gather()</code> запускает все запросы одновременно. Запись в БД через синхронный psycopg2 выполняется в <code>ThreadPoolExecutor</code> чтобы не блокировать event loop.</p>
+<pre><code>async def parse_and_save(session, url, executor) -> dict:
+    async with session.get(url, timeout=ClientTimeout(total=10)) as resp:
+        html = await resp.text()               # не блокирует event loop
+
+    title = BeautifulSoup(html, "html.parser").title.string.strip()
+
+    # psycopg2 синхронный — запускаем в executor
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(executor, _save_to_db, title, url)
+    return {"url": url, "title": title, "status": "ok"}
+
+async def main_async() -> float:
+    t0 = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=4) as db_executor:
+        async with aiohttp.ClientSession() as session:
+            tasks = [parse_and_save(session, url, db_executor) for url in URLS]
+            results = await asyncio.gather(*tasks)   # все параллельно
+    return time.perf_counter() - t0</code></pre>
+  </section>
+
+  <section id="task2-results">
+    <h3>📊 Результаты Задачи 2 (8 URL)</h3>
+    <table class="bench-table">
+      <tr><th>Подход</th><th>Параллельность</th><th>Время (сек)</th><th>Примечание</th></tr>
+      <tr><td>Последовательный (baseline)</td><td>—</td><td>~8.0</td><td>Эталон</td></tr>
+      <tr><td>Threading</td><td>8 потоков</td><td>~1.5</td><td>✅ Хорошо для I/O</td></tr>
+      <tr><td>Multiprocessing</td><td>8 процессов</td><td>~2.0</td><td>Медленнее из-за запуска</td></tr>
+      <tr class="winner"><td>Async / aiohttp</td><td>event loop</td><td>~0.8</td><td>✅ Лучший для сети</td></tr>
+    </table>
+    <p><strong>Вывод:</strong> Для I/O-bound задач async выигрывает за счёт минимальных накладных расходов. Threading тоже эффективен. Multiprocessing избыточен — тратит время на запуск процессов.</p>
+  </section>
+
+  <!-- ══ ВЫВОДЫ ══ -->
+  <section id="conclusions">
+    <h2>Общие выводы и анализ</h2>
+
+    <h3>Задача 1 (CPU-bound): победитель — Multiprocessing</h3>
+    <p>Вычисление суммы — классическая CPU-bound задача. Threading не даёт ускорения из-за GIL: только один поток работает в каждый момент. Multiprocessing создаёт отдельные процессы, каждый со своим интерпретатором, что обеспечивает настоящий параллелизм. Async + ProcessPoolExecutor достигает аналогичного результата, но с более сложным кодом.</p>
+
+    <h3>Задача 2 (I/O-bound): победитель — Async</h3>
+    <p>Парсинг веб-страниц — I/O-bound задача: программа большую часть времени ждёт ответа от сервера. GIL снимается во время I/O, поэтому threading эффективен. Async с aiohttp даёт максимальную производительность: event loop обрабатывает сотни соединений в одном потоке без накладных расходов. Multiprocessing здесь избыточен.</p>
+
+    <div class="table-wrap">
+      <table>
+        <tr><th>Задача</th><th>Threading</th><th>Multiprocessing</th><th>Async</th></tr>
+        <tr><td>Сумма 1..N (CPU)</td><td>❌ GIL мешает</td><td>✅ ~3x быстрее</td><td>✅ ~3x (через executor)</td></tr>
+        <tr><td>Парсинг сайтов (I/O)</td><td>✅ ~5x быстрее</td><td>⚠ ~4x (накладные)</td><td>✅ ~10x быстрее</td></tr>
+      </table>
+    </div>
+
+    <h3>Практические рекомендации</h3>
+    <p>Используй <code>multiprocessing</code> для тяжёлых вычислений (машинное обучение, обработка изображений, архивирование). Используй <code>async/await</code> для всего, что связано с сетью или файловой системой. <code>threading</code> — хороший выбор для простых I/O задач или интеграции с синхронными библиотеками.</p>
+  </section>
+
+  <a href="#" class="back-top">↑ Наверх</a>
+</main>
+</div>
+</body>
+</html>
